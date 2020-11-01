@@ -2,6 +2,15 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+/**
+    TODO: 
+        -milans input delay
+        -fine tuning vars
+        -neues ground checking
+        -vllt "Kletterfeature" fixen
+
+
+*/
 public class ThirdPersonPlayerMovement : MonoBehaviour
 {
     #region Variables
@@ -13,17 +22,15 @@ public class ThirdPersonPlayerMovement : MonoBehaviour
     [SerializeField]
     bool smooth;
     [SerializeField]
-    float movementSpeed, maxSlope, smoothSpeed;
+    float movementSpeed, smoothSpeed;
 
     [Header("Jump Options")]
     [SerializeField]
-    float jumpForce;
-    [SerializeField]
-    float jumpSpeed, jumpDecrease;
-
+    float jumpForce = 3f;
+    
     [Header("Gravity")]
     [SerializeField]
-    float gravity = 2.5f;
+    float gravity = 0.5f;
 
     [Header("GroundCheck")]
     [SerializeField]
@@ -37,24 +44,19 @@ public class ThirdPersonPlayerMovement : MonoBehaviour
     [SerializeField]
     SphereCollider sphereCol;
 
-
     //Movement Private Variables
     Vector3 velocity;
-    Vector3 move;
-    Vector3 vel;
 
     //Gravity Private Variables
     bool grounded;
-    float currentGravity;
 
     //Ground Check Private Variables
     RaycastHit groundHit;
-    Vector3 groundClamp, groundCheckPoint = new Vector3(0,-0.87f,0);
+    Vector3 groundCheckPoint = new Vector3(0,-0.87f,0);
 
-    //Jumping Private Variables
-    float jumpHeight = 0;
+    //Jumping Private Variables     
     bool inputJump;
-    #endregion
+    #endregion  
 
     #region Main Method
     void FixedUpdate()
@@ -71,26 +73,21 @@ public class ThirdPersonPlayerMovement : MonoBehaviour
     #region Movement
     void SimpleMove()
     {
-        move = new Vector3(Input.GetAxis("Horizontal"), 0, Input.GetAxis("Vertical"));
-        velocity += move;
+        velocity = new Vector3(0, velocity.y, 0);
+        velocity += new Vector3(Input.GetAxis("Horizontal"), 0, Input.GetAxis("Vertical")).normalized;
     }
+
     void FinalMove()
     {
-        vel = new Vector3(velocity.x, velocity.y, velocity.z);
-        vel = transform.TransformDirection(vel);
-
-        transform.position += vel.normalized * Time.deltaTime * movementSpeed;
-
-        velocity = Vector3.zero;
+        transform.position += transform.TransformDirection(velocity) * Time.deltaTime * movementSpeed;
     }
     #endregion
 
     #region Gravity/Grounding
     void Gravity()
     {
-        if (!grounded) velocity.y -= gravity;
+        if (!grounded) velocity.y -= gravity; 
     }
-   
 
     void GroundCheck()
     {
@@ -101,6 +98,8 @@ public class ThirdPersonPlayerMovement : MonoBehaviour
             GroundConfirm(tempHit);
         }
         else grounded = false;
+
+        if (grounded) velocity.y = 0;
     }
 
     private void GroundConfirm (RaycastHit tempHit)
@@ -120,37 +119,19 @@ public class ThirdPersonPlayerMovement : MonoBehaviour
                 grounded = true;
                 if (!inputJump)
                 {
-                    if (!smooth)
-                    {
-                        transform.position = new Vector3(transform.position.x, groundHit.point.y + playerHeight / 2, transform.position.z);
-                    }
-                    else
-                    {
-                        transform.position = Vector3.Lerp(transform.position, new Vector3(transform.position.x, groundHit.point.y + playerHeight / 2, transform.position.z), smoothSpeed * Time.deltaTime);
-                    }
+                    transform.position = new Vector3(transform.position.x, groundHit.point.y + playerHeight / 2, transform.position.z); //d:TODO HÄSSLICH
                 }
-
                 break;
             }
         }
 
 
-        if(num <= 1 && tempHit.distance <= snapDistance && !inputJump)
+        if(num <= 1 && tempHit.distance <= snapDistance && !inputJump && col[0] != null)
         {
-            if(col[0] != null)
-            {
-                Ray ray = new Ray(transform.TransformPoint(liftPoint), Vector3.down);
-                RaycastHit hit;
+            Ray ray = new Ray(transform.TransformPoint(liftPoint), Vector3.down);
+            RaycastHit hit;
 
-                if (Physics.Raycast(ray, out hit, snapDistance, checkLayers))
-                {
-                    if(hit.transform != col[0].transform)
-                    {
-                        grounded = false;
-                        return;
-                    }
-                }
-            }
+            grounded = !(Physics.Raycast(ray, out hit, snapDistance, checkLayers) && hit.transform != col[0].transform);
         }
     }
     #endregion
@@ -166,16 +147,11 @@ public class ThirdPersonPlayerMovement : MonoBehaviour
             Transform t = overlaps[i].transform;
             Vector3 dir;
             float dist;
-
             if (Physics.ComputePenetration(sphereCol, transform.position, transform.rotation, overlaps[i], t.position, t.rotation, out dir, out dist))
             {
-                Vector3 penetrationVector = dir * dist;
-                Vector3 velocityProjected = Vector3.Project(velocity, -dir);
-                transform.position = transform.position + penetrationVector;
-                vel -= velocityProjected;
-
+                transform.position = transform.position + dir * dist;
+                velocity -= Vector3.Project(velocity, -dir);
             }
-
         }
     }
 
@@ -187,35 +163,17 @@ public class ThirdPersonPlayerMovement : MonoBehaviour
     {
         bool canJump = false;
 
-        canJump = !Physics.Raycast(new Ray(transform.position, Vector3.up), playerHeight, checkLayers);
-
         if(grounded)
         {
-            jumpHeight = 0;
             inputJump = false;
         }
 
-        if (grounded && canJump)
+        if(grounded && !Physics.Raycast(new Ray(transform.position, Vector3.up), playerHeight, checkLayers) && Input.GetKey(KeyCode.Space))
         {
-            if(Input.GetKeyDown(KeyCode.Space))
-            {
-                inputJump = true;
-                transform.position += Vector3.up * (groundCheckRadius + 0.2f) * 2;
-                jumpHeight += jumpForce;
-
-            }
-        }
-        else
-        {
-            if(!grounded)
-            {
-                jumpHeight -=  gravity * Time.deltaTime;
-            }
-        }
-
-        velocity.y += jumpHeight;
-
+            inputJump = true;
+            transform.position += Vector3.up * (groundCheckRadius + 0.2f) * 2; //NEIN TODO
+            velocity.y += jumpForce;
+        }                    
     }
-
     #endregion
 }

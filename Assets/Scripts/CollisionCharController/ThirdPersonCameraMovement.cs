@@ -1,7 +1,10 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-
+/**
+    TODO:
+        -fix camera clipping
+*/
 public class ThirdPersonCameraMovement : MonoBehaviour
 {
     [SerializeField]

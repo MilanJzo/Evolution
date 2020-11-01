@@ -22,6 +22,7 @@ public class CubeMove : MonoBehaviour
 
         transform.localRotation = Quaternion.Euler(new Vector4(transform.localRotation.y, mouseX * 360f, transform.localRotation.z));
     }
+
     void cubeRotation2()
     {
         gameObject.transform.forward = new Vector3(Camera.main.transform.forward.x, 0,Camera.main.transform.forward.z);
